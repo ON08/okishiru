@@ -50,6 +50,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     var changeScripts: Boolean = false
 
+    //BGMのフェードインアウト用の変数
+    var vol = 1f
+
     //位置情報使用の権限許可を確認
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -216,10 +219,26 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         val list: MutableList<Article> = sharedViewModel.displayArticles.value!!
 
+        //音声読み上げスクリプトの数をカウント
+        var cnt = 0
+
         tts.setOnUtteranceProgressListener(object: UtteranceProgressListener() {
             override fun onDone(id: String) {
-                // BGMの音量を戻す
-                bgm.setVolume(1.0F, 1.0F)
+                //読み上げ終わった記事の分カウントをマイナス
+                cnt--
+                if(cnt <= 0) {
+                    // BGMの音量を戻す(フェードイン)
+                    while(vol < 1) {
+                        vol += 0.05f
+                        bgm.setVolume(vol, vol)
+
+                        try {
+                            Thread.sleep(200)
+                        } catch (e :InterruptedException) {
+                            e.printStackTrace()
+                        }
+                    }
+                }
                 // 読み上げが終わったコンテンツのリストを更新
                 sharedViewModel.doneScripts.add(Integer.parseInt(id))
                 if(changeScripts) {
@@ -232,8 +251,19 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             override fun onError(p0: String?) {}
 
             override fun onStart(id: String) {
-                // BGMの音量を下げる
-                bgm.setVolume(0.1F, 0.1F)
+                // BGMの音量を下げる(フェードアウト)
+                while(vol > 0.1) {
+                    vol -= 0.05f
+                    bgm.setVolume(vol, vol)
+
+                    try {
+                        Thread.sleep(200)
+                    } catch (e :InterruptedException) {
+                        e.printStackTrace()
+                    }
+                }
+
+//                bgm.setVolume(0.1F, 0.1F)
                 // 読み上げられているコンテンツの記事を記事リストから取得
                 for(script in scripts) {
                     // 読み上げているコンテンツを探索
@@ -270,6 +300,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             val text = script.voice
             // 音声読み上げのキューに追加
             tts.speak(text, TextToSpeech.QUEUE_ADD, null, "${script.id}")
+            //音声読み上げの数をカウント
+            cnt++
         }
     }
 
